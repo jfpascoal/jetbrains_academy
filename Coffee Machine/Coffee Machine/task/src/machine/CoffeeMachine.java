@@ -1,54 +1,124 @@
 package machine;
 
 import java.util.*;
+
 public class CoffeeMachine {
-    public static String[] items = {"water", "milk", "coffee beans", "disposable cups"};
-    public static Scanner scanner = new Scanner(System.in);
-
     public static void main(String[] args) {
-        // stock : {{items}, {balance}}
-        int[][] stock = new int[][] {{400, 540, 120, 9}, {550}};
-        boolean exit = false;
+        Scanner scanner = new Scanner(System.in);
+        Machine machine = new Machine(new int[][] {{400, 540, 120, 9}, {550}});
+        machine.startMachine();
+         do {
+             machine.processInput(scanner.next());
+        } while (machine.getStatus() != machineStatus.OFF);
+    }
+}
 
-        do {
-            System.out.println("\nWrite action (buy, fill, take, remaining, exit):");
-            String action = scanner.next();
-            switch (action) {
-                case "buy":
-                    stock = buyCoffee(stock);
-                    break;
-                case "fill":
-                    stock = fillMachine(stock);
-                    break;
-                case "take":
-                    stock = takeMoney(stock);
-                    break;
-                case "remaining":
-                    displayStock(items, stock);
-                    break;
-                case "exit":
-                    exit = true;
-                    break;
-                default:
-                    System.out.println("Unknown action");
-                    break;
-            }
-        } while (!exit);
+enum machineStatus {
+    STANDBY(0),
+    BUY(0),
+    FILL(0),
+    OFF(0);
+
+    private int n;
+
+    machineStatus(int n) {
+        this.n = n;
     }
 
-    private static void displayStock(String[] items, int[][] stock) {
-        // stock : {{water, milk, coffee beans, cups}, {balance}}
-        // items : {"water", "milk", "coffee beans", "disposable cups"};
-        System.out.println("\nThe coffee machine has:");
-        for (int i = 0; i < items.length; i++) {
-            System.out.printf("%d of %s\n", stock[0][i], items[i]);
+    public void nextN() {
+        this.n += 1;
+    }
+
+    public int getN() {
+        return this.n;
+    }
+}
+
+class Machine {
+    private final String[] items = {"water", "milk", "coffee beans", "disposable cups"};
+    private final String[][] fillItems = {
+            {"water", "milk", "coffee beans", "coffee"},
+            {"ml", "ml", "grams", "disposable cups"}
+    };
+    private machineStatus status = machineStatus.OFF;
+    private int[][] stock;// = {{400, 540, 120, 9}, {550}};
+
+    public Machine(int[][] stock) {
+        this.stock = stock; // stock : {{items}, {balance}}
+    }
+
+    public void startMachine() {
+        status = machineStatus.STANDBY;
+        displayMainMenu();
+    }
+
+    public void displayMainMenu() {
+        System.out.println("\nWrite action (buy, fill, take, remaining, exit):");
+    }
+
+    public void processInput(String input) {
+        switch (status) {
+            case STANDBY:
+                switch (input) {
+                    case "remaining":
+                        displayStock();
+                        displayMainMenu();
+                        break;
+                    case "buy":
+                        status = machineStatus.BUY;
+                        buyPrompt();
+                        break;
+                    case "fill":
+                        status = machineStatus.FILL;
+                        fillPrompt(status.getN());
+                        break;
+                    case "take":
+                        takeMoney();
+                        displayMainMenu();
+                        break;
+                    case "exit":
+                        status = machineStatus.OFF;
+                        break;
+                    default:
+                        System.out.println("Unsupported / unrecognized operation.");
+                        displayMainMenu();
+                }
+                break;
+            case BUY:
+                buyCoffee(input);
+                status = machineStatus.STANDBY;
+                displayMainMenu();
+                break;
+            case FILL:
+                fillItem(status.getN(), input);
+                if (status.getN() < items.length - 1) {
+                    status.nextN();
+                    fillPrompt(status.getN());
+                } else {
+                    status = machineStatus.STANDBY;
+                    displayMainMenu();
+                }
+                break;
         }
-        System.out.printf("$%d of money\n", stock[1][0]);
     }
 
-    private static int[][] buyCoffee(int[][] stock) {
+    public machineStatus getStatus() {
+        return status;
+    }
+
+    private void displayStock() {
+        System.out.println("\nThe coffee machine has:");
+        for (int i = 0; i < this.items.length; i++) {
+            System.out.printf("%d of %s\n", this.stock[0][i], this.items[i]);
+        }
+        System.out.printf("$%d of money\n", this.stock[1][0]);
+    }
+
+    private void buyPrompt() {
         System.out.println("\nWhat do you want to buy? 1 - espresso, 2 - latte, 3 - cappuccino:");
-        String option = scanner.next();
+    }
+
+    private void buyCoffee(String option) {
         int[] quantity = new int[stock[0].length];
         int price = 0;
         switch (option) {
@@ -65,85 +135,43 @@ public class CoffeeMachine {
                 price = 6;
                 break;
             case "back":
-                return stock;
+                return;
         }
 
-        int n = 1; // number of coffees
-
-        if (coffeeCalc(n, stock[0], quantity)) {
+        if (coffeeCalc(quantity)) {
             System.out.println("I have enough resources, making you a coffee!");
             for (int i = 0; i < stock[0].length; i++) {
-                stock[0][i] = stock[0][i] - n * quantity[i];
+                stock[0][i] = stock[0][i] - quantity[i];
             }
-            stock[1][0] = stock[1][0] + n * price;
+            stock[1][0] = stock[1][0] + price;
         }
-        return stock;
     }
 
-    private static int[][] fillMachine(int[][] stock) {
-        String[][] stockComp = {
-                {"water", "ml"},
-                {"milk", "ml"},
-                {"coffee beans", "grams"},
-                {"coffee", "disposable cups"}
-        };
+    private void fillPrompt(int index) {
         System.out.print("\n");
-        for (int i = 0; i < stockComp.length; i++) {
-            System.out.printf(
-                    "Write how many %s of %s do you want to add:\n",
-                    stockComp[i][1],
-                    stockComp[i][0]
-            );
-            stock[0][i] += scanner.nextInt();
-        }
-        return stock;
+        System.out.printf(
+                "Write how many %s of %s do you want to add:\n",
+                fillItems[1][index],
+                fillItems[0][index]
+        );
     }
 
-    private static int[][] takeMoney(int[][] stock) {
+    private void fillItem(int index, String quantity) {
+        stock[0][index] += Integer.parseInt(quantity);
+    }
+
+    private void takeMoney() {
         System.out.printf("I gave you $%d\n", stock[1][0]);
         stock[1][0] = 0;
-        return stock;
     }
 
-    private static boolean coffeeCalc(int n, int[] stock, int[] quantity) {
-        /*
-        quantity / stock:
-        {water, milk, coffee beans, cups}
-         */
-
-        for (int i = 0; i < stock.length; i++) {
-            if (quantity[i] != 0 && stock[i]/quantity[i] < n) {
+    private boolean coffeeCalc(int[] quantity) {
+        for (int i = 0; i < stock[0].length; i++) {
+            if (quantity[i] != 0 && stock[0][i]/quantity[i] < 1) {
                 System.out.printf("Sorry, not enough %s!\n", items[i]);
                 return false;
             }
         }
         return true;
     }
-/*
-    private static void printStatus(short status) {
-        switch (status) {
-            case 0:
-                System.out.println("Starting to make a coffee");
-                break;
-            case 1:
-                System.out.println("Grinding coffee beans");
-                break;
-            case 2:
-                System.out.println("Boiling water");
-                break;
-            case 3:
-                System.out.println("Mixing boiled water with crushed coffee beans");
-                break;
-            case 4:
-                System.out.println("Pouring coffee into the cup");
-                break;
-            case 5:
-                System.out.println("Pouring some milk into the cup");
-                break;
-            case 6:
-                System.out.println("Coffee is ready!");
-                break;
-        }
-    }
- */
 }
