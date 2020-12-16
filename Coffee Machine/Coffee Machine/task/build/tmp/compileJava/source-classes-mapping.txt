@@ -1,2 +1,5 @@
 machine/CoffeeMachine.java
  machine.CoffeeMachine
+ machine.Machine
+ machine.Machine$1
+ machine.machineStatus
