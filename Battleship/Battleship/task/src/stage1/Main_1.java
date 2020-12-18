@@ -1,23 +1,23 @@
-package battleship;
+package stage1;
 
 import java.util.*;
 
 
-public class Main {
+public class Main_1 {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        Battle battle = new Battle();
+        battleship.Battle battle = new battleship.Battle();
         do  {
             battle.processInput(scanner.nextLine());
-        } while (battle.getStatus() != Battle.Status.OVER);
+        } while (battle.getStatus() != battleship.Battle.Status.OVER);
     }
 }
 
 
 class Battle {
-    private Player p1;
-    private Player p2;
-    private Status status;
+    private battleship.Player p1;
+    private battleship.Player p2;
+    private battleship.Battle.Status status;
     private final HashMap<String, int[]> map = new HashMap<>(); // coordinate : {row, col} indexes
 
     Battle() {
@@ -28,8 +28,8 @@ class Battle {
                 map.put(coordinate.toString(), new int[] {row, col});
             }
         }
-        status = Status.START_P1;
-        p1 = new Player(); // start player 1
+        status = battleship.Battle.Status.START_P1;
+        p1 = new battleship.Player(); // start player 1
     }
 
     enum Status {
@@ -48,7 +48,7 @@ class Battle {
         int getN() { return this.n; }
     }
 
-    public Status getStatus() { return status; }
+    public battleship.Battle.Status getStatus() { return status; }
 
     public void processInput(String input) {
         switch (status) {
@@ -56,15 +56,15 @@ class Battle {
                 char[][] field = p1.getField(); // get player's field
                 if (
                         positionIsValid(input) // input coordinates are valid
-                        && !isTooClose(input, field) // not too close to another ship
-                        && p1.setShipPosition(status.getN(), convertPosition(input)) // ship length is correct
+                                && !isTooClose(input, field) // not too close to another ship
+                                && p1.setShipPosition(status.getN(), convertPosition(input)) // ship length is correct
                 ) {
                     status.nextN();
                 } else {
                     return;
                 }
                 if (!p1.enterShip(status.getN())) { // there are no more ships to enter
-                    status = Status.OVER;
+                    status = battleship.Battle.Status.OVER;
                 }
                 break;
             default:
@@ -115,8 +115,8 @@ class Battle {
             String[] coordinates = input.trim().split("\\s+");
             if (
                     coordinates.length != 2
-                    || !coordinates[0].matches("^[A-J][1-9]$|^[A-J]10$")
-                    || !coordinates[1].matches("^[A-J][1-9]$|^[A-J]10$")
+                            || !coordinates[0].matches("^[A-J][1-9]$|^[A-J]10$")
+                            || !coordinates[1].matches("^[A-J][1-9]$|^[A-J]10$")
             ) {
                 throw new IllegalArgumentException();
             }
@@ -124,8 +124,8 @@ class Battle {
             // check that coordinates are a valid position, i.e. horizontal or vertical
             if (
                     Objects.equals(coordinates[0], coordinates[1]) // only one cell or
-                    || ( coordinates[0].charAt(0) != coordinates[1].charAt(0) // different row and
-                    && !Objects.equals(coordinates[0].substring(1), coordinates[1].substring(1))) // different col
+                            || ( coordinates[0].charAt(0) != coordinates[1].charAt(0) // different row and
+                            && !Objects.equals(coordinates[0].substring(1), coordinates[1].substring(1))) // different col
             ) {
                 System.out.println("Error! Wrong ship location! Try again:");
                 return false;
@@ -170,18 +170,18 @@ class Battle {
 
 class Player {
     private char[][] field = new char[10][10];
-    private Ship[] ships = new Ship[5];
+    private battleship.Ship[] ships = new battleship.Ship[5];
 
     public Player() {
         for (char[] row : field) {
             Arrays.fill(row, '~'); // fill field row with '~'
         }
         // Create ships
-        ships[0] = new Ship("Aircraft Carrier", 5);
-        ships[1] = new Ship("Battleship", 4);
-        ships[2] = new Ship("Submarine", 3);
-        ships[3] = new Ship("Cruiser", 3);
-        ships[4] = new Ship("Destroyer", 2);
+        ships[0] = new battleship.Ship("Aircraft Carrier", 5);
+        ships[1] = new battleship.Ship("Battleship", 4);
+        ships[2] = new battleship.Ship("Submarine", 3);
+        ships[3] = new battleship.Ship("Cruiser", 3);
+        ships[4] = new battleship.Ship("Destroyer", 2);
 
         enterShip(0);
     }
