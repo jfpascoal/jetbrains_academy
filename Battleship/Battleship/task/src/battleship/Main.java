@@ -6,10 +6,16 @@ import java.util.*;
 public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-        Battle battle = new Battle();
+        Battle battle = newBattle();
         do  {
             battle.processInput(scanner.nextLine());
         } while (battle.getStatus() != Battle.Status.OVER);
+    }
+
+    private static Battle newBattle() {
+        Battle battle = new Battle();
+        battle.initPlayer(1);
+        return battle;
     }
 }
 
@@ -24,62 +30,117 @@ class Battle {
         char y = 'A';
         for (int row = 0; row < 10; row++, y++) {
             for (int col = 0; col < 10; col++) { // fill HashMap for coordinates
-                StringBuilder coordinate = new StringBuilder().append(y).append(col + 1);
-                map.put(coordinate.toString(), new int[] {row, col});
+                map.put(String.valueOf(y) + (col + 1), new int[] {row, col});
             }
         }
-        status = Status.START_P1;
-        p1 = new Player(); // start player 1
     }
 
     enum Status {
         START_P1(0),
-        //START_P2(0),
+        START_PASS(0),
+        START_P2(0),
         TURN_P1(0),
-        //TURN_P2(0),
+        TURN_P2(0),
+        TURN_PASS(0),
         OVER(0);
 
-        private int count;
+        private int index;
 
-        Status(int count) { this.count = count; }
+        Status(int index) { this.index = index; }
 
-        void add() { this.count += 1; }
+        private void nextIndex() { this.index += 1; }
 
-        int getCount() { return this.count; }
+        private int getIndex() { return this.index; }
+
+        private void setIndex(int index) { this.index = index; }
     }
 
-    public Status getStatus() { return status; }
+    Status getStatus() { return status; }
 
-    public void processInput(String input) {
+    void initPlayer(int playerId) {
+        status = Status.valueOf("START_P" + playerId);
+        Player p = new Player();
+        System.out.printf("\nPlayer %d, place your ships to the field game\n", playerId);
+        p.enterShip(0);
+        if (playerId == 1) {
+            p1 = p;
+        } else if (playerId == 2) {
+            p2 = p;
+        }
+    }
+
+    void processInput(String input) {
         switch (status) {
             case START_P1:
-                char[][] field = p1.getField(); // get player's field
-                if (
-                        positionIsValid(input) // input coordinates are valid
-                        && !isTooClose(input, field) // not too close to another ship
-                        && p1.setShipPosition(status.getCount(), convertPosition(input)) // ship length is correct
-                ) {
-                    status.add();
-                } else {
+                if (!setShipFromInput(p1, input)) {
                     return;
+                } else if (!p1.enterShip(status.getIndex())) { // there are no more ships to enter
+                    status = Status.START_PASS;
+                    passMove();
                 }
-                if (!p1.enterShip(status.getCount())) { // there are no more ships to enter
+                break;
+            case START_PASS:
+                initPlayer(2);
+                break;
+            case START_P2:
+                if (!setShipFromInput(p2, input)) {
+                    return;
+                } else if (!p2.enterShip(status.getIndex())) { // there are no more ships to enter
                     startBattle();
                 }
                 break;
             case TURN_P1:
-                if (map.containsKey(input)) { // check if position is valid
-                    p1.takeHit(map.get(input));
-                } else {
-                    System.out.println("\nError! You entered the wrong coordinates! Try again!");
-                    return;
-                }
-                if (p1.noMoreShips()) {
-                    status = Status.OVER;
-                }
+                takeShotFromInput(2, input);
+                break;
+            case TURN_PASS:
+                int playerId = status.getIndex();
+                hitPrompt(playerId);
+                status = Status.valueOf("TURN_P" + playerId);
+                break;
+            case TURN_P2:
+                takeShotFromInput(1, input);
                 break;
             default:
-                return;
+                break;
+        }
+    }
+
+    private boolean setShipFromInput(Player p, String input) {
+        char[][] field = p.getField(); // get player's field
+        if (
+                positionIsValid(input) // input coordinates are valid
+                        && !isTooClose(input, field) // not too close to another ship
+                        && p.setShipPosition(status.getIndex(), convertPosition(input)) // ship length is correct
+        ) {
+            status.nextIndex();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private void takeShotFromInput(int opponentId, String input) {
+        Player p;
+        if (opponentId == 1) {
+            p = p1;
+        } else if (opponentId == 2) {
+            p = p2;
+        } else {
+            return;
+        }
+
+        if (map.containsKey(input)) { // check if position is valid
+            p.takeShot(map.get(input));
+        } else {
+            System.out.println("\nError! You entered the wrong coordinates! Try again:");
+            return;
+        }
+        if (p.noMoreShips()) {
+            status = Status.OVER;
+        } else {
+            status = Status.TURN_PASS;
+            status.setIndex(opponentId);
+            passMove();
         }
     }
 
@@ -170,32 +231,41 @@ class Battle {
                         return true;
                     }
                 } catch (ArrayIndexOutOfBoundsException e) {
-                    continue; // ignore exception
+                    // ignore ArrayIndexOutOfBoundsException
                 }
             }
         }
         return false;
     }
 
-    private void startBattle() {
-        System.out.println("\nThe game starts!");
-        status = Status.TURN_P1;
-        hitPrompt(p1);
+    private void passMove() {
+        System.out.println("\nPress Enter and pass the move to another player\n...");
     }
 
-    private void hitPrompt(Player p) {
-        p.printField(true);
-        System.out.println("\nTake a shot!");
+    private void startBattle() {
+        //System.out.println("\nThe game starts!");
+        status = Status.TURN_PASS;
+        status.setIndex(1);
+        passMove();
+    }
+
+    private void hitPrompt(int playerId) {
+        if (playerId == 1) {
+            p1.printField(p2.getField());
+        } else if (playerId ==2) {
+            p2.printField(p1.getField());
+        }
+        System.out.printf("\nPlayer %d, it's your turn:\n", playerId);
     }
 }
 
 
 class Player {
-    private char[][] field = new char[10][10];
-    private ArrayList<Ship> ships = new ArrayList<>();
-    private HashMap<String, Ship> shipMap = new HashMap<>();
+    private final char[][] field = new char[10][10];
+    private final ArrayList<Ship> ships = new ArrayList<>();
+    private final HashMap<String, Ship> shipMap = new HashMap<>();
 
-    public Player() {
+    Player() {
         for (char[] row : field) {
             Arrays.fill(row, '~'); // fill field row with '~'
         }
@@ -205,17 +275,13 @@ class Player {
         ships.add(new Ship("Submarine", 3));
         ships.add(new Ship("Cruiser", 3));
         ships.add(new Ship("Destroyer", 2));
-
-        enterShip(0);
     }
 
-    public char[][] getField() {
-        return field;
-    }
+    char[][] getField() { return field; }
 
-    public boolean noMoreShips() { return ships.size() == 0; }
+    boolean noMoreShips() { return ships.size() == 0; }
 
-    public void printField(boolean fog) {
+    void printField(boolean fog, char[][] field) {
         System.out.println("\n  1 2 3 4 5 6 7 8 9 10");
         char col = 'A';
         for (char[] row : field) {
@@ -232,9 +298,15 @@ class Player {
         }
     }
 
-    public boolean enterShip(int index) {
+    void printField(char[][] opponent) {
+        printField(true, opponent);
+        System.out.print("---------------------");
+        printField(false, this.field);
+    }
+
+    boolean enterShip(int index) {
         if (index < ships.size()) {
-            printField(false);
+            printField(false, this.field);
             System.out.printf(
                     "\nEnter the coordinates of the %s (%d cells): \n",
                     ships.get(index).getType(),
@@ -242,12 +314,12 @@ class Player {
             );
             return true;
         } else {
-            printField(false);
+            printField(false, this.field);
             return false;
         }
     }
 
-    public boolean setShipPosition(int index, int[][] coordinates) {
+    boolean setShipPosition(int index, int[][] coordinates) {
         if (coordinates.length == ships.get(index).getSize()) { // check if size is correct
             //ships[index].setPosition(coordinates);
             for (int[] cell : coordinates) { // change field
@@ -261,7 +333,7 @@ class Player {
         }
     }
 
-    public void takeHit(int[] pos) {
+    void takeShot(int[] pos) {
         if (field[pos[0]][pos[1]] == 'O') {
             field[pos[0]][pos[1]] = 'X';
             // check if ship sank
@@ -270,31 +342,26 @@ class Player {
             if (ship.isSunk()) {
                 ships.remove(ship);
             } else {
-                printField(true);
-                System.out.println("\nYou hit a ship! Try again:");
+                System.out.println("\nYou hit a ship!");
                 return;
             }
             if (ships.size() > 0) {
-                printField(true);
-                System.out.println("\nYou sank a ship! Specify a new target:");
+                System.out.println("\nYou sank a ship!");
             } else {
-                printField(true);
                 System.out.println("\nYou sank the last ship. You won. Congratulations!");
             }
-        } else if (field[pos[0]][pos[1]] == 'M' || field[pos[0]][pos[1]] == 'X') {
-            printField(true);
-            System.out.println("\nYou shot there before! Try again:");
         } else {
-            field[pos[0]][pos[1]] = 'M';
-            printField(true);
-            System.out.println("\nYou missed! Try again:");
+            if (field[pos[0]][pos[1]] == '~') {
+                field[pos[0]][pos[1]] = 'M';
+            }
+            System.out.println("\nYou missed!");
         }
     }
 }
 
 class Ship {
-    private String type;
-    private int size;
+    private final String type;
+    private final int size;
     private int hits = 0;
 
     public Ship(String type, int size) {
@@ -302,15 +369,15 @@ class Ship {
         this.size = size;
     }
 
-    public String getType() {
+    String getType() {
         return type;
     }
 
-    public int getSize() {
+    int getSize() {
         return size;
     }
 
-    public void takeHit(){ hits++; }
+    void takeHit(){ hits++; }
 
-    public boolean isSunk() { return hits == size; }
+    boolean isSunk() { return hits == size; }
 }

@@ -1,10 +1,12 @@
 class Employee {
 
     String name = "unknown";
-    int salary = 0;
+    int salary;
     String address = "unknown";
 
-    public Employee() {}
+    public Employee() {
+        this.salary = 0;
+    }
 
     public Employee(String name, int salary) {
         this.name = name;

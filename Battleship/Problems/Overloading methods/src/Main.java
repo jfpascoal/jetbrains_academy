@@ -6,7 +6,9 @@ public class Main {
         return Long.MAX_VALUE - val;
     }
 
-    public static int getMaxMinusCurrent(int val) { return Integer.MAX_VALUE - val; }
+    public static int getMaxMinusCurrent(int val) { 
+        return Integer.MAX_VALUE - val; 
+    }
 
     // Do not change code below
 
